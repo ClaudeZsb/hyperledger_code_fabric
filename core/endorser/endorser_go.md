@@ -19,11 +19,12 @@ type Endorser struct {
 * 如果是系统 CC，检查是否是可以从外部调用的三种之一：cscc、lscc 或 qscc。
 * 如果 chainID 不为空，获取对应 chain 的账本结构，检查 TxID 在账本上没出现过；对于非系统 CC，检查 ACL（根据 chaincode 指定的 endorsement Policy，签名提案在指定 channel 上有写权限，最终是调用 common/cauthdsl 下面代码，支持指定必须包括某个成员来签名，或者是凑够若干几个合法签名）。
 * 如果 chainID 不为空，获取交易模拟器和历史查询器（通过ledger去new txsimulator和historyqueryexecutor，而且交易模拟器是不包含历史信息的，所以为了查询历史需要拿到一个historyqueryexecutor），把historyqueryexecutor加入到Context的K-V储存中。
-* 如果 chainID 不为空，调用 simulateProposal\(\) 方法获取模拟执行的结果，检查返回的响应response的状态，若不小于错误500则创建并返回一个失败的ProposalResponse。
+* 调用 simulateProposal\(\) 方法获取模拟执行的结果，检查返回的响应response的状态，若不小于错误500则创建并返回一个失败的ProposalResponse。
 * chainID不为空下，调用endorseProposal\(\)方法对之前得到的模拟执行的结果进行背书，返回ProposalResponse，检查simulateProposal返回的response的状态，若不小于错误阈值400（被背书节点反对），返回ProposalResponse及链码错误chaincodeError（endorseProposal里有检查链码执行结果的状态，而simulateProposal没有检查）。
 * 将response.Payload赋给ProposalResponse.Response.Payload（因为simulateProposal返回的response里面包含链码调用的结果）。
 * 返回响应消息 ProposalResponse。
 
+特殊地，chainID为空时，比如Install链码的背书请求（install操作不产生交易，但仍有发请求和背书的过程），其背书执行过程没有账本、交易、ACL的检查，也不用获取交易模拟器和历史查询器，但仍需要调用simulateProposal()去发起对LSCC的调用，之后不需要调用endorseProposal()，直接把simulateProposal()返回的response给ProposalResponse.Response，然后返回ProposalResponse。
 #### simulateProposal 方法
 
 主要过程如下：
